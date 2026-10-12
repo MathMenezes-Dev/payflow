@@ -1,3 +1,4 @@
+
 package com.payflow.exception;
 
 import java.util.LinkedHashMap;
@@ -20,7 +21,7 @@ public class GlobalExceptionHandler {
         response.put("error", exception.getMessage());
 
         return ResponseEntity
-                .status(HttpStatus.CONFLICT)
+                .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
 
