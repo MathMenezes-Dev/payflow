@@ -1,3 +1,4 @@
+
 package com.payflow.controller;
 
 import static org.mockito.BDDMockito.given;
@@ -13,8 +14,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.payflow.entity.User;
+import com.payflow.exception.EmailAlreadyExistsException;
 import com.payflow.service.UserService;
-
 
 @WebMvcTest(UserController.class)
 class UserControllerTest {
@@ -63,12 +64,12 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.name").value("Nome é obrigatório"))
                 .andExpect(jsonPath("$.email").value("E-mail inválido"));
     }
-    
+
     @Test
     void shouldRejectDuplicatedEmail() throws Exception {
 
         given(userService.save(org.mockito.ArgumentMatchers.any(User.class)))
-                .willThrow(new IllegalArgumentException("E-mail já cadastrado"));
+                .willThrow(new EmailAlreadyExistsException("E-mail já cadastrado"));
 
         mockMvc.perform(post("/users")
                 .contentType(MediaType.APPLICATION_JSON)

@@ -1,3 +1,4 @@
+
 package com.payflow.controller;
 
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,8 @@ import com.payflow.dto.TransferRequest;
 import com.payflow.entity.Transfer;
 import com.payflow.service.TransferService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/transfers")
 public class TransferController {
@@ -21,7 +24,9 @@ public class TransferController {
     }
 
     @PostMapping
-    public ResponseEntity<Transfer> transfer(@RequestBody TransferRequest request) {
+    public ResponseEntity<Transfer> transfer(
+            @Valid @RequestBody TransferRequest request) {
+
         Transfer transfer = transferService.transfer(request);
 
         return ResponseEntity.ok(transfer);

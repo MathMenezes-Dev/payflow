@@ -1,3 +1,4 @@
+
 package com.payflow.service;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.payflow.entity.User;
 import com.payflow.entity.Wallet;
+import com.payflow.exception.EmailAlreadyExistsException;
 import com.payflow.repository.UserRepository;
 import com.payflow.repository.WalletRepository;
 
@@ -63,8 +65,8 @@ class UserServiceTest {
         given(userRepository.existsByEmail(user.getEmail()))
                 .willReturn(true);
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        EmailAlreadyExistsException exception = assertThrows(
+                EmailAlreadyExistsException.class,
                 () -> userService.save(user)
         );
 

@@ -8,6 +8,8 @@ import com.payflow.repository.UserRepository;
 import com.payflow.repository.WalletRepository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.payflow.exception.EmailAlreadyExistsException;
+
 @Service
 public class UserService {
 
@@ -23,10 +25,10 @@ public class UserService {
     @Transactional
     public User save(User user) {
 
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("E-mail já cadastrado");
-        }
-
+    	if (userRepository.existsByEmail(user.getEmail())) {
+    	    throw new EmailAlreadyExistsException("E-mail já cadastrado");
+    	}
+    	
         User savedUser = userRepository.save(user);
 
         Wallet wallet = new Wallet(savedUser);

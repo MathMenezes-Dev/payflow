@@ -13,6 +13,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<Map<String, String>> handleEmailAlreadyExistsException(
+            EmailAlreadyExistsException exception) {
+
+        Map<String, String> response = new LinkedHashMap<>();
+        response.put("error", exception.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgumentException(
             IllegalArgumentException exception) {
@@ -33,7 +45,8 @@ public class GlobalExceptionHandler {
 
         exception.getBindingResult()
                 .getFieldErrors()
-                .forEach(error -> response.put(error.getField(), error.getDefaultMessage()));
+                .forEach(error ->
+                        response.put(error.getField(), error.getDefaultMessage()));
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)

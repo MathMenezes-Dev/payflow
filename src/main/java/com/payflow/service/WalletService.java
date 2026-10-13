@@ -19,10 +19,12 @@ public class WalletService {
         this.walletRepository = walletRepository;
     }
 
+    @Transactional(readOnly = true)
     public WalletResponse findByUserId(Long userId) {
 
         Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Carteira não encontrada"));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Carteira não encontrada"));
 
         return new WalletResponse(
                 wallet.getUser().getId(),
@@ -33,12 +35,18 @@ public class WalletService {
     @Transactional
     public WalletResponse deposit(Long userId, BigDecimal amount) {
 
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("O valor do depósito deve ser maior que zero");
+        if (userId == null) {
+            throw new IllegalArgumentException("O ID do usuário é obrigatório");
         }
 
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Carteira não encontrada"));
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "O valor do depósito deve ser maior que zero");
+        }
+
+        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Carteira não encontrada"));
 
         BigDecimal newBalance = wallet.getBalance().add(amount);
 
