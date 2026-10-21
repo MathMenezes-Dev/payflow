@@ -4,6 +4,7 @@ package com.payflow.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,9 +26,11 @@ public class TransferController {
 
     @PostMapping
     public ResponseEntity<Transfer> transfer(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransferRequest request) {
 
-        Transfer transfer = transferService.transfer(request);
+        Transfer transfer = transferService.transfer(
+                request, idempotencyKey);
 
         return ResponseEntity.ok(transfer);
     }

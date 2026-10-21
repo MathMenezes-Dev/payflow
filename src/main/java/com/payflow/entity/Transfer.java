@@ -1,8 +1,10 @@
+
 package com.payflow.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,6 +28,13 @@ public class Transfer {
     private Long receiverId;
 
     private BigDecimal amount;
+
+    @Column(
+            name = "idempotency_key",
+            unique = true,
+            length = 100
+    )
+    private String idempotencyKey;
 
     private LocalDateTime createdAt;
 }
