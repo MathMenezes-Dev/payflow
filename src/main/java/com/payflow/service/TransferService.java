@@ -1,4 +1,3 @@
-
 package com.payflow.service;
 
 import java.math.BigDecimal;
@@ -64,6 +63,33 @@ public class TransferService {
                     "Origem e destino devem ser diferentes");
         }
 
+        Wallet senderWallet;
+        Wallet receiverWallet;
+
+        // Bloqueia as carteiras sempre na mesma ordem.
+        if (senderId < receiverId) {
+            senderWallet = walletRepository
+                    .findByUserIdForUpdate(senderId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Carteira do remetente não encontrada"));
+
+            receiverWallet = walletRepository
+                    .findByUserIdForUpdate(receiverId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Carteira do destinatário não encontrada"));
+        } else {
+            receiverWallet = walletRepository
+                    .findByUserIdForUpdate(receiverId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Carteira do destinatário não encontrada"));
+
+            senderWallet = walletRepository
+                    .findByUserIdForUpdate(senderId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Carteira do remetente não encontrada"));
+        }
+
+        // Verifica se esta solicitação já foi processada.
         var existingTransfer = transferRepository
                 .findByIdempotencyKey(idempotencyKey);
 
@@ -82,27 +108,6 @@ public class TransferService {
             }
 
             return existing;
-        }
-
-        Wallet senderWallet;
-        Wallet receiverWallet;
-
-        if (senderId < receiverId) {
-            senderWallet = walletRepository.findByUserIdForUpdate(senderId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Carteira do remetente não encontrada"));
-
-            receiverWallet = walletRepository.findByUserIdForUpdate(receiverId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Carteira do destinatário não encontrada"));
-        } else {
-            receiverWallet = walletRepository.findByUserIdForUpdate(receiverId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Carteira do destinatário não encontrada"));
-
-            senderWallet = walletRepository.findByUserIdForUpdate(senderId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Carteira do remetente não encontrada"));
         }
 
         if (senderWallet.getBalance().compareTo(amount) < 0) {
