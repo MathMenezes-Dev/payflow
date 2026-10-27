@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.payflow.dto.TransferRequest;
 import com.payflow.entity.Transfer;
 import com.payflow.entity.Wallet;
+import com.payflow.repository.TransferIdempotencyKeyRepository;
 import com.payflow.repository.TransferRepository;
 import com.payflow.repository.WalletRepository;
 
@@ -37,6 +38,9 @@ class TransferServiceTest {
 
     @Mock
     private WalletRepository walletRepository;
+
+    @Mock
+    private TransferIdempotencyKeyRepository idempotencyKeyRepository;
 
     @InjectMocks
     private TransferService transferService;
@@ -57,6 +61,9 @@ class TransferServiceTest {
     void shouldTransferSuccessfully() {
         TransferRequest request = createRequest(
                 1L, 2L, new BigDecimal("30.00"));
+
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.empty());
 
         when(walletRepository.findByUserIdForUpdate(1L))
                 .thenReturn(Optional.of(senderWallet));
@@ -80,17 +87,11 @@ class TransferServiceTest {
 
         assertEquals(1L, result.getSenderId());
         assertEquals(2L, result.getReceiverId());
-
-        assertEquals(
-                new BigDecimal("30.00"),
-                result.getAmount());
-
+        assertEquals(new BigDecimal("30.00"), result.getAmount());
         assertNotNull(result.getCreatedAt());
+        assertEquals(IDEMPOTENCY_KEY, result.getIdempotencyKey());
 
-        assertEquals(
-                IDEMPOTENCY_KEY,
-                result.getIdempotencyKey());
-
+        verify(idempotencyKeyRepository).lockOrCreate(IDEMPOTENCY_KEY);
         verify(walletRepository).save(senderWallet);
         verify(walletRepository).save(receiverWallet);
         verify(transferRepository).save(any(Transfer.class));
@@ -102,6 +103,10 @@ class TransferServiceTest {
                 IllegalArgumentException.class,
                 () -> transferService.transfer(
                         null, IDEMPOTENCY_KEY));
+
+        verifyNoInteractions(idempotencyKeyRepository);
+        verifyNoInteractions(walletRepository);
+        verifyNoInteractions(transferRepository);
     }
 
     @Test
@@ -126,6 +131,7 @@ class TransferServiceTest {
                 () -> transferService.transfer(
                         request, "a".repeat(101)));
 
+        verifyNoInteractions(idempotencyKeyRepository);
         verifyNoInteractions(walletRepository);
         verifyNoInteractions(transferRepository);
     }
@@ -139,6 +145,8 @@ class TransferServiceTest {
                 IllegalArgumentException.class,
                 () -> transferService.transfer(
                         request, IDEMPOTENCY_KEY));
+
+        verifyNoInteractions(idempotencyKeyRepository);
     }
 
     @Test
@@ -158,6 +166,8 @@ class TransferServiceTest {
                 IllegalArgumentException.class,
                 () -> transferService.transfer(
                         negativeRequest, IDEMPOTENCY_KEY));
+
+        verifyNoInteractions(idempotencyKeyRepository);
     }
 
     @Test
@@ -169,12 +179,17 @@ class TransferServiceTest {
                 IllegalArgumentException.class,
                 () -> transferService.transfer(
                         request, IDEMPOTENCY_KEY));
+
+        verifyNoInteractions(idempotencyKeyRepository);
     }
 
     @Test
     void shouldRejectInsufficientBalance() {
         TransferRequest request = createRequest(
                 1L, 2L, new BigDecimal("150.00"));
+
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.empty());
 
         when(walletRepository.findByUserIdForUpdate(1L))
                 .thenReturn(Optional.of(senderWallet));
@@ -194,12 +209,17 @@ class TransferServiceTest {
         assertEquals(
                 new BigDecimal("20.00"),
                 receiverWallet.getBalance());
+
+        verify(idempotencyKeyRepository).lockOrCreate(IDEMPOTENCY_KEY);
     }
 
     @Test
     void shouldRejectTransferWhenSenderWalletDoesNotExist() {
         TransferRequest request = createRequest(
                 1L, 2L, new BigDecimal("10.00"));
+
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.empty());
 
         when(walletRepository.findByUserIdForUpdate(1L))
                 .thenReturn(Optional.empty());
@@ -214,6 +234,9 @@ class TransferServiceTest {
     void shouldRejectTransferWhenReceiverWalletDoesNotExist() {
         TransferRequest request = createRequest(
                 1L, 2L, new BigDecimal("10.00"));
+
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.empty());
 
         when(walletRepository.findByUserIdForUpdate(1L))
                 .thenReturn(Optional.of(senderWallet));
@@ -239,12 +262,6 @@ class TransferServiceTest {
         existingTransfer.setAmount(new BigDecimal("30.00"));
         existingTransfer.setIdempotencyKey(IDEMPOTENCY_KEY);
 
-        when(walletRepository.findByUserIdForUpdate(1L))
-                .thenReturn(Optional.of(senderWallet));
-
-        when(walletRepository.findByUserIdForUpdate(2L))
-                .thenReturn(Optional.of(receiverWallet));
-
         when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
                 .thenReturn(Optional.of(existingTransfer));
 
@@ -253,11 +270,8 @@ class TransferServiceTest {
 
         assertSame(existingTransfer, result);
 
-        verify(walletRepository).findByUserIdForUpdate(1L);
-        verify(walletRepository).findByUserIdForUpdate(2L);
-
-        verify(walletRepository, never())
-                .save(any(Wallet.class));
+        verify(idempotencyKeyRepository).lockOrCreate(IDEMPOTENCY_KEY);
+        verifyNoInteractions(walletRepository);
 
         verify(transferRepository, never())
                 .save(any(Transfer.class));
@@ -275,12 +289,6 @@ class TransferServiceTest {
         existingTransfer.setAmount(new BigDecimal("30.00"));
         existingTransfer.setIdempotencyKey(IDEMPOTENCY_KEY);
 
-        when(walletRepository.findByUserIdForUpdate(1L))
-                .thenReturn(Optional.of(senderWallet));
-
-        when(walletRepository.findByUserIdForUpdate(2L))
-                .thenReturn(Optional.of(receiverWallet));
-
         when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
                 .thenReturn(Optional.of(existingTransfer));
 
@@ -289,11 +297,8 @@ class TransferServiceTest {
                 () -> transferService.transfer(
                         request, IDEMPOTENCY_KEY));
 
-        verify(walletRepository).findByUserIdForUpdate(1L);
-        verify(walletRepository).findByUserIdForUpdate(2L);
-
-        verify(walletRepository, never())
-                .save(any(Wallet.class));
+        verify(idempotencyKeyRepository).lockOrCreate(IDEMPOTENCY_KEY);
+        verifyNoInteractions(walletRepository);
 
         verify(transferRepository, never())
                 .save(any(Transfer.class));

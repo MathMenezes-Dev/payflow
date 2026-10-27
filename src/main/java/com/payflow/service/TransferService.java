@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.payflow.dto.TransferRequest;
 import com.payflow.entity.Transfer;
 import com.payflow.entity.Wallet;
+import com.payflow.repository.TransferIdempotencyKeyRepository;
 import com.payflow.repository.TransferRepository;
 import com.payflow.repository.WalletRepository;
 
@@ -17,12 +18,15 @@ public class TransferService {
 
     private final TransferRepository transferRepository;
     private final WalletRepository walletRepository;
+    private final TransferIdempotencyKeyRepository idempotencyKeyRepository;
 
     public TransferService(
             TransferRepository transferRepository,
-            WalletRepository walletRepository) {
+            WalletRepository walletRepository,
+            TransferIdempotencyKeyRepository idempotencyKeyRepository) {
         this.transferRepository = transferRepository;
         this.walletRepository = walletRepository;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
     @Transactional
@@ -63,6 +67,30 @@ public class TransferService {
                     "Origem e destino devem ser diferentes");
         }
 
+        // Reserva ou bloqueia a chave dentro da transação atual.
+        idempotencyKeyRepository.lockOrCreate(idempotencyKey);
+
+        // Verifica se esta solicitação já foi processada.
+        var existingTransfer = transferRepository
+                .findByIdempotencyKey(idempotencyKey);
+
+        if (existingTransfer.isPresent()) {
+            Transfer existing = existingTransfer.get();
+
+            boolean sameRequest =
+                    existing.getSenderId().equals(senderId)
+                    && existing.getReceiverId().equals(receiverId)
+                    && existing.getAmount().compareTo(amount) == 0;
+
+            if (!sameRequest) {
+                throw new IllegalArgumentException(
+                        "A chave de idempotência já foi utilizada "
+                        + "com dados diferentes");
+            }
+
+            return existing;
+        }
+
         Wallet senderWallet;
         Wallet receiverWallet;
 
@@ -87,27 +115,6 @@ public class TransferService {
                     .findByUserIdForUpdate(senderId)
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Carteira do remetente não encontrada"));
-        }
-
-        // Verifica se esta solicitação já foi processada.
-        var existingTransfer = transferRepository
-                .findByIdempotencyKey(idempotencyKey);
-
-        if (existingTransfer.isPresent()) {
-            Transfer existing = existingTransfer.get();
-
-            boolean sameRequest =
-                    existing.getSenderId().equals(senderId)
-                    && existing.getReceiverId().equals(receiverId)
-                    && existing.getAmount().compareTo(amount) == 0;
-
-            if (!sameRequest) {
-                throw new IllegalArgumentException(
-                        "A chave de idempotência já foi utilizada "
-                        + "com dados diferentes");
-            }
-
-            return existing;
         }
 
         if (senderWallet.getBalance().compareTo(amount) < 0) {
